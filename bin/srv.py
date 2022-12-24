@@ -15,7 +15,7 @@ APP = Flask(__name__)
 
 MYDIR = os.path.abspath(
     os.path.dirname(os.path.dirname('__file__')))
-sys.path.append("%s/lib/" % MYDIR)
+sys.path.append(f"{MYDIR}/lib/")
 
 import wttr_srv
 from globals import TEMPLATES, STATIC, LISTEN_HOST, LISTEN_PORT

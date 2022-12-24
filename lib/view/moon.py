@@ -33,7 +33,7 @@ def get_moon(parsed_query):
         try:
             dateutil.parser.parse(date)
         except Exception as e:
-            print("ERROR: %s" % e)
+            print(f"ERROR: {e}")
         else:
             cmd += [date]
 

@@ -53,12 +53,12 @@ def render_temperature(data, query):
     """
 
     if query.get('use_imperial', False):
-        temperature = u'%s°F' % data['temp_F']
+        temperature = f"{data['temp_F']}°F"
     else:
-        temperature = u'%s°C' % data['temp_C']
+        temperature = f"{data['temp_C']}°C"
 
     if temperature[0] != '-':
-        temperature = '+' + temperature
+        temperature = f'+{temperature}'
 
     return temperature
 
@@ -68,12 +68,12 @@ def render_feel_like_temperature(data, query):
     """
 
     if query.get('use_imperial', False):
-        temperature = u'%s°F' % data['FeelsLikeF']
+        temperature = f"{data['FeelsLikeF']}°F"
     else:
-        temperature = u'%s°C' % data['FeelsLikeC']
+        temperature = f"{data['FeelsLikeC']}°C"
 
     if temperature[0] != '-':
-        temperature = '+' + temperature
+        temperature = f'+{temperature}'
 
     return temperature
 
@@ -104,11 +104,9 @@ def render_condition_fullname(data, query):
     condition_fullname (C)
     """
 
-    found = None
-    for key, val in data.items():
-        if key.startswith('lang_'):
-            found = val
-            break
+    found = next(
+        (val for key, val in data.items() if key.startswith('lang_')), None
+    )
     if not found:
         found = data['weatherDesc']
 
@@ -123,9 +121,7 @@ def render_condition_plain(data, query):
     """Plain text weather condition (x)
     """
 
-    weather_condition = WEATHER_SYMBOL_PLAIN[WWO_CODE[data['weatherCode']]]
-
-    return weather_condition
+    return WEATHER_SYMBOL_PLAIN[WWO_CODE[data['weatherCode']]]
 
 def render_humidity(data, query):
     """
@@ -172,8 +168,7 @@ def render_uv_index(data, query):
     UV Index (u)
     """
 
-    answer = data.get('uvIndex', '')
-    return answer
+    return data.get('uvIndex', '')
 
 def render_wind(data, query):
     """
@@ -200,15 +195,17 @@ def render_wind(data, query):
 
     if query.get('use_ms_for_wind', False):
         unit = 'm/s'
-        wind = u'%s%.1f%s' % (wind_direction, float(data['windspeedKmph'])/36.0*10.0, unit)
+        return u'%s%.1f%s' % (
+            wind_direction,
+            float(data['windspeedKmph']) / 36.0 * 10.0,
+            unit,
+        )
     elif query.get('use_imperial', False):
         unit = 'mph'
-        wind = u'%s%s%s' % (wind_direction, data['windspeedMiles'], unit)
+        return f"{wind_direction}{data['windspeedMiles']}{unit}"
     else:
         unit = 'km/h'
-        wind = u'%s%s%s' % (wind_direction, data['windspeedKmph'], unit)
-
-    return wind
+        return f"{wind_direction}{data['windspeedKmph']}{unit}"
 
 def render_location(data, query):
     """
@@ -221,7 +218,7 @@ def render_moonphase(_, query):
     """moonpahse(m)
     A symbol describing the phase of the moon
     """
-    moon_phase = moon.phase(date=datetime.datetime.today())
+    moon_phase = moon.phase(date=datetime.datetime.now())
     moon_index = int(int(32.0*moon_phase/28+2)%32/4)
     return MOON_PHASES[moon_index]
 
@@ -229,7 +226,7 @@ def render_moonday(_, query):
     """moonday(M)
     An number describing the phase of the moon (days after the New Moon)
     """
-    moon_phase = moon.phase(date=datetime.datetime.today())
+    moon_phase = moon.phase(date=datetime.datetime.now())
     return str(int(moon_phase))
 
 ##################################
@@ -237,7 +234,7 @@ def render_moonday(_, query):
 # this is just a temporary solution
 
 def get_geodata(location):
-    text = requests.get("http://localhost:8004/%s" % location).text
+    text = requests.get(f"http://localhost:8004/{location}").text
     return json.loads(text)
 
 
@@ -378,7 +375,7 @@ def format_weather_data(query, parsed_query, data):
     """
 
     if 'data' not in data:
-        return 'Unknown location; please try ~%s' % parsed_query["location"]
+        return f'Unknown location; please try ~{parsed_query["location"]}'
 
     format_line = parsed_query.get("view", "")
     if format_line in PRECONFIGURED_FORMAT:
@@ -413,8 +410,7 @@ def wttr_line(query, parsed_query):
     lang = parsed_query['lang']
 
     data = get_weather_data(location, lang)
-    output = format_weather_data(query, parsed_query, data)
-    return output
+    return format_weather_data(query, parsed_query, data)
 
 def main():
     """

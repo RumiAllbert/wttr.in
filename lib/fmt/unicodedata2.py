@@ -596,8 +596,9 @@ def _compile_scripts_txt():
     url = 'http://www.unicode.org/Public/UNIDATA/Scripts.txt'
     f = urllib2.urlopen(url)
     for ln in f:
-        p = re.findall(r'([0-9A-F]+)(?:\.\.([0-9A-F]+))?\W+(\w+)\s*#\s*(\w+)', ln)
-        if p:
+        if p := re.findall(
+            r'([0-9A-F]+)(?:\.\.([0-9A-F]+))?\W+(\w+)\s*#\s*(\w+)', ln
+        ):
             a, b, name, cat = p[0]
             if name not in names:
                 names.append(name)

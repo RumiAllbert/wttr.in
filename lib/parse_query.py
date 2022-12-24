@@ -48,13 +48,12 @@ def metric_or_imperial(query, lang, us_ip=False):
         # slack uses m by default, to override it speciy us.wttr.in
         query['use_imperial'] = True
         query['use_metric'] = False
+    elif us_ip:
+        query['use_imperial'] = True
+        query['use_metric'] = False
     else:
-        if us_ip:
-            query['use_imperial'] = True
-            query['use_metric'] = False
-        else:
-            query['use_imperial'] = False
-            query['use_metric'] = True
+        query['use_imperial'] = False
+        query['use_metric'] = True
 
     return query
 
@@ -163,7 +162,7 @@ def parse_wttrin_png_name(name):
     for letter in one_letter_options:
         to_be_parsed[letter] = ''
 
-    parsed.update(parse_query(to_be_parsed))
+    parsed |= parse_query(to_be_parsed)
 
     # currently `view` is alias for `format`
     if "format" in parsed and not parsed.get("view"):

@@ -49,12 +49,19 @@ def extract_emojis_to_directory(dirname):
     emoji_size = 30
 
     for emoji in EMOJIS:
-        filename = "%s/%s.png" % (dirname, emoji)
+        filename = f"{dirname}/{emoji}.png"
         convert_string = [
-            "convert", "-background", "black", "-size", "%sx%s" % (emoji_size, emoji_size),
-            "-set", "colorspace", "sRGB",
-            "pango:<span font=\"%s\" size=\"20000\">%s</span>" % (emoji_font, emoji),
-            filename
+            "convert",
+            "-background",
+            "black",
+            "-size",
+            f"{emoji_size}x{emoji_size}",
+            "-set",
+            "colorspace",
+            "sRGB",
+            "pango:<span font=\"%s\" size=\"20000\">%s</span>"
+            % (emoji_font, emoji),
+            filename,
         ]
         subprocess.Popen(convert_string)
 

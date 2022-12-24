@@ -48,8 +48,7 @@ def get_signature(user_agent, query_string, client_ip_address, lang):
     if ":" in location:
         return None
 
-    signature = "%s:%s:%s:%s" % \
-        (user_agent, query_string, client_ip_address, lang)
+    signature = f"{user_agent}:{query_string}:{client_ip_address}:{lang}"
     print(signature)
     return signature
 
@@ -119,10 +118,10 @@ def _store_in_file(signature, value):
 
     if isinstance(value, bytes):
         mode = "wb"
-        signature_hash = "bfile:%s" % signature_hash
+        signature_hash = f"bfile:{signature_hash}"
     else:
         mode = "w"
-        signature_hash = "file:%s" % signature_hash
+        signature_hash = f"file:{signature_hash}"
 
     with open(filename, mode) as f_cache:
         f_cache.write(value)

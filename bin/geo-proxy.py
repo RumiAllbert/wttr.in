@@ -88,11 +88,11 @@ def find_location(location):
 
     if answer is not None:
         loaded_answer = answer.copy()
-        print("cache found: %s" % location)
+        print(f"cache found: {location}")
 
     if answer is None:
         answer = query_osm(location)
-    
+
     if is_airport:
         answer['address'] = shorten_full_address(answer['address'])
 
@@ -104,10 +104,9 @@ def find_location(location):
 
     if answer is None:
         return ""
-    else:
-        r = Response(json.dumps(answer)) 
-        r.headers["Content-Type"] = "text/json; charset=utf-8"
-        return r
+    r = Response(json.dumps(answer))
+    r.headers["Content-Type"] = "text/json; charset=utf-8"
+    return r
 
 app.config['JSON_AS_ASCII'] = False
 server = WSGIServer(("127.0.0.1", 8004), app)

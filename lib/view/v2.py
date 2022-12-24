@@ -55,15 +55,9 @@ def get_data(config):
     Fetch data for `query_string`
     """
 
-    url = (
-        'http://'
-        'localhost:5001/premium/v1/weather.ashx'
-        '?key=%s'
-        '&q=%s&format=json&num_of_days=3&tp=3&lang=None'
-    ) % (WWO_KEY, config["location"])
+    url = f'http://localhost:5001/premium/v1/weather.ashx?key={WWO_KEY}&q={config["location"]}&format=json&num_of_days=3&tp=3&lang=None'
     text = requests.get(url).text
-    parsed_data = json.loads(text)
-    return parsed_data
+    return json.loads(text)
 
 def interpolate_data(input_data, max_width):
     """
@@ -84,14 +78,13 @@ def jq_query(query, data_parsed):
     """
 
     pyjq_data = pyjq.all(query, data_parsed)
-    data = list(map(float, pyjq_data))
-    return data
+    return list(map(float, pyjq_data))
 
 # }}}
 # utils {{{
 def colorize(string, color_code, html_output=False):
     if html_output:
-        return "<font color='#777777'>%s</font>" % (string)
+        return f"<font color='#777777'>{string}</font>"
     else:
         return "\033[%sm%s\033[0m" % (color_code, string)
 # }}}
@@ -123,8 +116,7 @@ def draw_spark(data, height, width, color_data):
             character = _box(height, height-i-1, data[j], max_value)
             if data[j] != 0:
                 chance_of_rain = color_data[j]/100.0 * 2
-                if chance_of_rain > 1:
-                    chance_of_rain = 1
+                chance_of_rain = min(chance_of_rain, 1)
                 color_index = int(5*chance_of_rain)
                 color_code = 16 + color_index # int(math.floor((20-16) * 1.0 * (height-1-i)/height*(max_value/data[j])))
             output += "\033[38;5;%sm%s\033[0m" % (color_code, character)
@@ -198,7 +190,7 @@ def draw_date(config, geo_data):
 
     for _ in range(3):
         answer += " "*23 + u"╷"
-    return answer[:-1] + " "
+    return f"{answer[:-1]} "
 
 
 # }}}
@@ -213,9 +205,9 @@ def draw_time(geo_data):
 
     line = ["", ""]
 
+    part = u"─"*5 + u"┴" + u"─"*5
     for _ in range(3):
-        part = u"─"*5 + u"┴" + u"─"*5
-        line[0] += part + u"┼" + part + u"╂"
+        line[0] += f"{part}┼{part}╂"
     line[0] += "\n"
 
     for _ in range(3):
@@ -276,22 +268,18 @@ def draw_astronomical(city_name, geo_data, config):
             sunset = current_date + datetime.timedelta(hours=24)
 
         char = "."
-        if current_date < dawn:
+        if current_date < dawn or current_date > dusk:
             char = " "
-        elif current_date > dusk:
-            char = " "
-        elif dawn <= current_date and current_date <= sunrise:
+        elif current_date <= sunrise or sunset <= current_date:
             char = u"─"
-        elif sunset <= current_date and current_date <= dusk:
-            char = u"─"
-        elif sunrise <= current_date and current_date <= sunset:
+        elif sunrise <= current_date <= sunset:
             char = u"━"
 
         answer += char
 
         if config.get("view") in ["v2n", "v2d"]:
             moon_phases = constants.MOON_PHASES_WI
-            moon_phases = [" %s" % x for x in moon_phases]
+            moon_phases = [f" {x}" for x in moon_phases]
         else:
             moon_phases = constants.MOON_PHASES
 
@@ -304,12 +292,7 @@ def draw_astronomical(city_name, geo_data, config):
         #    if time_interval in [0, 24, 48, 69]:
             moon_line += moon_phase_emoji # + " "
         elif time_interval % 3 == 0:
-            if time_interval not in [24,28]: #se:
-                moon_line += "   "
-            else:
-                moon_line += " "
-
-
+            moon_line += "   " if time_interval not in [24,28] else " "
     answer = moon_line + "\n" + answer + "\n"
     answer += "\n"
     return answer
@@ -375,16 +358,16 @@ def draw_wind(data, color_data, config):
         else:
             wind_direction = ""
 
-        color_code = "38;5;%s" % _color_code_for_wind_speed(int(color_data[j]))
-        answer += " %s " % colorize(wind_direction, color_code)
+        color_code = f"38;5;{_color_code_for_wind_speed(int(color_data[j]))}"
+        answer += f" {colorize(wind_direction, color_code)} "
 
         # wind_speed
         wind_speed = int(color_data[j])
         wind_speed_str = colorize(str(wind_speed), color_code)
         if wind_speed < 10:
-            wind_speed_str = " " + wind_speed_str + " "
+            wind_speed_str = f" {wind_speed_str} "
         elif wind_speed < 100:
-            wind_speed_str = " " + wind_speed_str
+            wind_speed_str = f" {wind_speed_str}"
         answer_line2 += wind_speed_str
 
     answer += "\n"
@@ -407,9 +390,13 @@ def add_frame(output, width, config):
         + (config["override_location_name"] or config["location"])
 
     caption = u"┤ " + " " + weather_report + " " + u" ├"
-    output = u"┌" + caption + u"─"*(width-len(caption)) + u"┐\n" \
-                + output + \
-             u"└" + u"─"*width + u"┘\n"
+    output = (
+        (
+            (f"┌{caption}" + u"─" * (width - len(caption)) + u"┐\n" + output)
+            + u"└"
+        )
+        + u"─" * width
+    ) + u"┘\n"
 
     return output
 
@@ -433,10 +420,7 @@ def generate_panel(data_parsed, geo_data, config):
     weather_code_query = "[.data.weather[] | .hourly[]] | .[].weatherCode"
     wind_direction_query = "[.data.weather[] | .hourly[]] | .[].winddirDegree"
 
-    output = ""
-
-    output += "\n\n"
-
+    output = "" + "\n\n"
     output += draw_date(config, geo_data)
     output += "\n"
     output += "\n"
@@ -469,8 +453,7 @@ def generate_panel(data_parsed, geo_data, config):
     output += draw_astronomical(config["location"], geo_data, config)
     output += "\n"
 
-    output = add_frame(output, max_width, config)
-    return output
+    return add_frame(output, max_width, config)
 
 
 # }}}
@@ -493,9 +476,9 @@ def textual_information(data_parsed, geo_data, config, html_output=False):
             return output
 
         for word in words[1:]:
-            if _count_runes(output + "," + word) > 50:
+            if _count_runes(f"{output},{word}") > 50:
                 return output
-            output += "," + word
+            output += f",{word}"
 
         return output
 
@@ -517,9 +500,9 @@ def textual_information(data_parsed, geo_data, config, html_output=False):
     current_condition = data_parsed['data']['current_condition'][0]
     query = config
     weather_line = wttr_line.render_line(format_line, current_condition, query)
-    output.append('Weather: %s' % weather_line)
+    output.append(f'Weather: {weather_line}')
 
-    output.append('Timezone: %s' % timezone)
+    output.append(f'Timezone: {timezone}')
 
     local_tz = pytz.timezone(timezone)
 
@@ -548,11 +531,11 @@ def textual_information(data_parsed, geo_data, config, html_output=False):
     tmp_output = []
 
     tmp_output.append('  Now:    %%{{NOW(%s)}}' % timezone)
-    tmp_output.append('Dawn:    %s' % local_time_of["dawn"])
-    tmp_output.append('Sunrise: %s' % local_time_of["sunrise"])
-    tmp_output.append('  Zenith: %s     ' % local_time_of["noon"])
-    tmp_output.append('Sunset:  %s' % local_time_of["sunset"])
-    tmp_output.append('Dusk:    %s' % local_time_of["dusk"])
+    tmp_output.append(f'Dawn:    {local_time_of["dawn"]}')
+    tmp_output.append(f'Sunrise: {local_time_of["sunrise"]}')
+    tmp_output.append(f'  Zenith: {local_time_of["noon"]}     ')
+    tmp_output.append(f'Sunset:  {local_time_of["sunset"]}')
+    tmp_output.append(f'Dusk:    {local_time_of["dusk"]}')
 
     tmp_output = [
         re.sub("^([A-Za-z]*:)", lambda m: _colorize(m.group(1), "2"), x)
@@ -593,7 +576,7 @@ def textual_information(data_parsed, geo_data, config, html_output=False):
 # }}}
 # get_geodata {{{
 def get_geodata(location):
-    text = requests.get("http://localhost:8004/%s" % location).text
+    text = requests.get(f"http://localhost:8004/{location}").text
     return json.loads(text)
 # }}}
 
@@ -604,14 +587,10 @@ def main(query, parsed_query, data):
     html_output = parsed_query["html_output"]
 
     geo_data = get_geodata(location)
-    if data is None:
-        data_parsed = get_data(parsed_query)
-    else:
-        data_parsed = data
-
+    data_parsed = get_data(parsed_query) if data is None else data
     if html_output:
         parsed_query["text"] = "no"
-        filename = "b_" + parse_query.serialize(parsed_query) + ".png"
+        filename = f"b_{parse_query.serialize(parsed_query)}.png"
         output = """
 <html>
 <head>

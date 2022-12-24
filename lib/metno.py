@@ -22,14 +22,14 @@ def metno_request(path, query_string):
     # it seems as though the proxy was built after the majority of the app
     # and not refactored. For WAPI we'll strip this and the API key out,
     # then manage it on our own.
-    logger.debug('Original path: ' + path)
-    logger.debug('Original query: ' + query_string)
+    logger.debug(f'Original path: {path}')
+    logger.debug(f'Original query: {query_string}')
 
     path = path.replace('premium/v1/weather.ashx',
                         'weatherapi/locationforecast/2.0/complete')
     query_string = re.sub(r'key=[^&]*&', '', query_string)
     query_string = re.sub(r'format=[^&]*&', '', query_string)
-    days = int(re.search(r'num_of_days=([0-9]+)&', query_string).group(1))
+    days = int(re.search(r'num_of_days=([0-9]+)&', query_string)[1])
     query_string = re.sub(r'num_of_days=[0-9]+&', '', query_string)
     # query_string = query_string.replace('key=', '?key=' + WAPI_KEY)
     # TP is for hourly forecasting, which isn't available in the free api.
@@ -39,20 +39,19 @@ def metno_request(path, query_string):
     query_string = re.sub(r'lang=[^&]*$', '', query_string)
     query_string = re.sub(r'&$', '', query_string)
 
-    logger.debug('qs: ' + query_string)
+    logger.debug(f'qs: {query_string}')
     # Deal with coordinates. Need to be rounded to 4 decimals for metno ToC
     # and in a different query string format
     coord_match = re.search(r'q=[^&]*', query_string)
-    coords_str = coord_match.group(0)
+    coords_str = coord_match[0]
     coords = re.findall(r'[-0-9.]+', coords_str)
     lat = str(round(float(coords[0]), 4))
     lng = str(round(float(coords[1]), 4))
-    logger.debug('lat: ' + lat)
-    logger.debug('lng: ' + lng)
-    query_string = re.sub(r'q=[^&]*', 'lat=' + lat + '&lon=' + lng + '&',
-                          query_string)
-    logger.debug('Return path: ' + path)
-    logger.debug('Return query: ' + query_string)
+    logger.debug(f'lat: {lat}')
+    logger.debug(f'lng: {lng}')
+    query_string = re.sub(r'q=[^&]*', f'lat={lat}&lon={lng}&', query_string)
+    logger.debug(f'Return path: {path}')
+    logger.debug(f'Return query: {query_string}')
 
     return path, query_string, days
 
@@ -130,7 +129,7 @@ def to_16_point(degrees):
     # 360 degrees / 16 = 22.5 degrees of arc or 11.25 degrees around the point
     if degrees > (360 - 11.25) or degrees <= 11.25:
         return 'N'
-    if degrees > 11.25 and degrees <= (11.25 + 22.5):
+    if degrees <= 11.25 + 22.5:
         return 'NNE'
     if degrees > (11.25 + (22.5 * 1)) and degrees <= (11.25 + (22.5 * 2)):
         return 'NE'
@@ -181,15 +180,15 @@ def hpa_to_in(hpa):
 def group_hours_to_days(lat, lng, hourlies, days_to_return):
     tf = timezonefinder.TimezoneFinder()
     timezone_str = tf.certain_timezone_at(lat=lat, lng=lng)
-    logger.debug('got TZ: ' + timezone_str)
+    logger.debug(f'got TZ: {timezone_str}')
     tz = timezone(timezone_str)
     start_day_gmt = datetime.fromisoformat(hourlies[0]['time']
                                            .replace('Z', '+00:00'))
     start_day_local = start_day_gmt.astimezone(tz)
     end_day_local = (start_day_local + timedelta(days=days_to_return - 1)).date()
-    logger.debug('series starts at gmt time: ' + str(start_day_gmt))
-    logger.debug('series starts at local time: ' + str(start_day_local))
-    logger.debug('series ends on day: ' + str(end_day_local))
+    logger.debug(f'series starts at gmt time: {str(start_day_gmt)}')
+    logger.debug(f'series starts at local time: {str(start_day_local)}')
+    logger.debug(f'series ends on day: {str(end_day_local)}')
     days = {}
 
     for hour in hourlies:
@@ -225,9 +224,11 @@ def group_hours_to_days(lat, lng, hourlies, days_to_return):
                 n = n + 1
 
             uv = hour['data']['instant']['details']
-            if 'ultraviolet_index_clear_sky' in uv:
-                if uv['ultraviolet_index_clear_sky'] > maxUvIndex:
-                    maxUvIndex = uv['ultraviolet_index_clear_sky']
+            if (
+                'ultraviolet_index_clear_sky' in uv
+                and uv['ultraviolet_index_clear_sky'] > maxUvIndex
+            ):
+                maxUvIndex = uv['ultraviolet_index_clear_sky']
         day["maxtempC"] = str(maxTempC)
         day["maxtempF"] = str(celsius_to_f(maxTempC))
         day["mintempC"] = str(minTempC)
@@ -356,10 +357,7 @@ def _convert_hour(hour):
 
 
 def _convert_hourly(hours):
-    converted_hours = []
-    for hour in hours:
-        converted_hours.append(_convert_hour(hour))
-    return converted_hours
+    return [_convert_hour(hour) for hour in hours]
 
 
 # Whatever is upstream is expecting data in the shape of WWO. This method will

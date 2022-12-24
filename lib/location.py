@@ -99,19 +99,18 @@ def _geolocator(location):
     """
 
     try:
-        geo = requests.get('%s/%s' % (GEOLOCATOR_SERVICE, location)).text
+        geo = requests.get(f'{GEOLOCATOR_SERVICE}/{location}').text
     except requests.exceptions.ConnectionError as exception:
-        print("ERROR: %s" % exception)
+        print(f"ERROR: {exception}")
         return None
 
     if geo == "":
         return None
 
     try:
-        answer = json.loads(geo.encode('utf-8'))
-        return answer
+        return json.loads(geo.encode('utf-8'))
     except ValueError as exception:
-        print("ERROR: %s" % exception)
+        print(f"ERROR: {exception}")
         return None
 
     return None
@@ -134,7 +133,7 @@ def _ipcachewrite(ip_addr, location):
         os.makedirs(IP2LCACHE)
     with open(cachefile, 'w') as file:
         # like ip2location format
-        file.write(location[3] + ';' + location[2] + ';' + location[1] + ';' + location[0])
+        file.write(f'{location[3]};{location[2]};{location[1]};{location[0]}')
         if len(location) > 4:
             file.write(';' + ';'.join(map(str, location[4:])))
 
@@ -155,7 +154,7 @@ def _ipcache(ip_addr):
             # [ccode];country;region;city;[lat];[long];...
             return None
     else:
-        _debug_log("[_ipcache] %s not found" % ip_addr)
+        _debug_log(f"[_ipcache] {ip_addr} not found")
     return None
 
 
@@ -173,17 +172,17 @@ def _ip2location(ip_addr):
     if not IP2LOCATION_KEY:
         return None
     try:
-        _debug_log("[_ip2location] %s search" % ip_addr)
+        _debug_log(f"[_ip2location] {ip_addr} search")
         r = requests.get(
-            'http://api.ip2location.com/?ip=%s&key=%s&package=WS3'  # WS5 provides latlong
-            % (ip_addr, IP2LOCATION_KEY))
+            f'http://api.ip2location.com/?ip={ip_addr}&key={IP2LOCATION_KEY}&package=WS3'
+        )
         r.raise_for_status()
         location = r.text
 
         parts = location.split(';')
         if len(parts) >= 4:
             #       ccode,    country,  region,   city,       (rest)
-            _debug_log("[_ip2location] %s found" % ip_addr)
+            _debug_log(f"[_ip2location] {ip_addr} found")
             return [parts[3], parts[2], parts[1], parts[0]] + parts[4:]
         return None
     except requests.exceptions.RequestException:
@@ -194,9 +193,7 @@ def _ipinfo(ip_addr):
     if not IPINFO_TOKEN:
         return None
     try:
-        r = requests.get(
-            'https://ipinfo.io/%s/json?token=%s'
-            % (ip_addr, IPINFO_TOKEN))
+        r = requests.get(f'https://ipinfo.io/{ip_addr}/json?token={IPINFO_TOKEN}')
         r.raise_for_status()
         r_json = r.json()
         # can't do two unpackings on one line
@@ -212,11 +209,11 @@ def _ipinfo(ip_addr):
 
 def _geoip(ip_addr):
     try:
-        _debug_log("[_geoip] %s search" % ip_addr)
+        _debug_log(f"[_geoip] {ip_addr} search")
         response = GEOIP_READER.city(ip_addr)
         # print(response.subdivisions)
         city, region, country, ccode, lat, long = response.city.name, response.subdivisions[0].names["en"], response.country.name, response.country.iso_code, response.location.latitude, response.location.longitude
-        _debug_log("[_geoip] %s found" % ip_addr)
+        _debug_log(f"[_geoip] {ip_addr} found")
     except IndexError:
         # Tuple error
         try:
@@ -253,7 +250,7 @@ def _get_location(ip_addr):
         elif method == 'ipinfo':
             location = _ipinfo(ip_addr)
         else:
-            print("ERROR: invalid iplocation method specified: %s" % method)
+            print(f"ERROR: invalid iplocation method specified: {method}")
         if location is not None:
             break
 
@@ -293,7 +290,7 @@ def _load_aliases(aliases_filename):
     """
     aliases_db = {}
     with open(aliases_filename, 'r') as f_aliases:
-        for line in f_aliases.readlines():
+        for line in f_aliases:
             try:
                 from_, to_ = line.decode('utf-8').split(':', 1)
             except AttributeError:
@@ -308,9 +305,7 @@ def _load_iata_codes(iata_codes_filename):
     Load IATA codes from the IATA codes file
     """
     with open(iata_codes_filename, 'r') as f_iata_codes:
-        result = []
-        for line in f_iata_codes.readlines():
-            result.append(line.strip())
+        result = [line.strip() for line in f_iata_codes]
     return set(result)
 
 
@@ -338,9 +333,7 @@ def _get_hemisphere(location):
         return True
 
     geolocation = _geolocator(location_string)
-    if geolocation is None:
-        return True
-    return geolocation["latitude"] > 0
+    return True if geolocation is None else geolocation["latitude"] > 0
 
 
 def _fully_qualified_location(location, region, country):
@@ -366,9 +359,9 @@ def _fully_qualified_location(location, region, country):
     # or correct name resolution, so for the moment `region` is used
     # only for the United States
     if country == "United States" and region:
-        location += ", %s, %s" % (region, country)
+        location += f", {region}, {country}"
     else:
-        location += ", %s" % country
+        location += f", {country}"
     return location
 
 
@@ -394,7 +387,7 @@ def location_processing(location, ip_addr):
             location, region, country = _get_location(
                 socket.gethostbyname(
                     location.lstrip('~ ')[1:]))
-            location = '~' + location
+            location = f'~{location}'
             location = _fully_qualified_location(location, region, country)
             hide_full_address = not force_show_full_address
         except:
@@ -405,7 +398,7 @@ def location_processing(location, ip_addr):
     # For moon queries, hemisphere must be found
     # True for North, False for South
     hemisphere = False
-    if location is not None and (location.lower()+"@").startswith("moon@"):
+    if location is not None and f"{location.lower()}@".startswith("moon@"):
         hemisphere = _get_hemisphere(query_source_location)
 
     country = None
@@ -418,7 +411,7 @@ def location_processing(location, ip_addr):
 
         # here too
         if location:
-            location = '~' + location
+            location = f'~{location}'
             location = _fully_qualified_location(location, region, country)
             hide_full_address = not force_show_full_address
 
@@ -444,12 +437,9 @@ def location_processing(location, ip_addr):
         if geolocation is not None:
             if not override_location_name:
                 override_location_name = location[1:].replace('+', ' ')
-            location = "%s,%s" % (geolocation['latitude'], geolocation['longitude'])
+            location = f"{geolocation['latitude']},{geolocation['longitude']}"
             country = None
-            if not hide_full_address:
-                full_address = geolocation['address']
-            else:
-                full_address = None
+            full_address = None if hide_full_address else geolocation['address']
         else:
             location = NOT_FOUND_LOCATION #location[1:]
 
@@ -470,8 +460,7 @@ def _main_():
 
     for filename in glob.glob(os.path.join(IP2LCACHE, "*")):
         ip_address = os.path.basename(filename)
-        data = _ipcache(ip_address)
-        if data:
+        if data := _ipcache(ip_address):
             city, region, country = data
             if any(x in city for x in "0123456789"):
                 print(city)

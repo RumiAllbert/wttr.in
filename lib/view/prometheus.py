@@ -65,5 +65,6 @@ def render_prometheus(data):
         data["current_condition"][0], already_seen=already_seen)
     for i in range(3):
         answer += _render_current(
-            data["weather"][i], for_day="%sd" % i, already_seen=already_seen)
+            data["weather"][i], for_day=f"{i}d", already_seen=already_seen
+        )
     return answer

@@ -92,17 +92,11 @@ def _color_mapping(color, inverse=False):
     """
 
     if color == 'default':
-        if inverse:
-            return 'black'
-        return 'lightgray'
-
+        return 'black' if inverse else 'lightgray'
     if color in ['green', 'black', 'cyan', 'blue', 'brown']:
         return color
     try:
-        return (
-            int(color[0:2], 16),
-            int(color[2:4], 16),
-            int(color[4:6], 16))
+        return int(color[:2], 16), int(color[2:4], 16), int(color[4:6], 16)
     except (ValueError, IndexError):
         # if we do not know this color and it can not be decoded as RGB,
         # print it and return it as it is (will be displayed as black)
@@ -154,9 +148,7 @@ def _script_category(char):
     cat = unicodedata2.script_cat(char)[0]
     if char == u'：':
         return 'Han'
-    if cat in ['Latin', 'Common']:
-        return 'default'
-    return cat
+    return 'default' if cat in ['Latin', 'Common'] else cat
 
 def _load_emojilib():
     """Load known emojis from a directory, and return dictionary
@@ -195,10 +187,7 @@ def _gen_term(buf, graphemes, options=None):
     buf = buf[-ROWS:]
 
     draw = ImageDraw.Draw(image)
-    font = {}
-    for cat in FONT_CAT:
-        font[cat] = ImageFont.truetype(FONT_CAT[cat], FONT_SIZE)
-
+    font = {cat: ImageFont.truetype(FONT_CAT[cat], FONT_SIZE) for cat in FONT_CAT}
     emojilib = _load_emojilib()
 
     x_pos = 0
@@ -225,7 +214,7 @@ def _gen_term(buf, graphemes, options=None):
             if data:
                 cat = _script_category(data[0])
                 if cat not in font:
-                    globals.log("Unknown font category: %s" % cat)
+                    globals.log(f"Unknown font category: {cat}")
                 if cat == 'Emoji' and emojilib.get(data):
                     image.paste(emojilib.get(data), (x_pos, y_pos))
                 else:
@@ -245,20 +234,12 @@ def _gen_term(buf, graphemes, options=None):
         except ValueError:
             transparency = 255
 
-        if transparency < 0:
-            transparency = 0
-
-        if transparency > 255:
-            transparency = 255
-
+        transparency = max(transparency, 0)
+        transparency = min(transparency, 255)
         image = image.convert("RGBA")
         datas = image.getdata()
 
-        new_data = []
-        for item in datas:
-            new_item = tuple(list(item[:3]) + [transparency])
-            new_data.append(new_item)
-
+        new_data = [tuple(list(item[:3]) + [transparency]) for item in datas]
         image.putdata(new_data)
 
     img_bytes = io.BytesIO()

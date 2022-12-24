@@ -145,10 +145,8 @@ def debug_log(text):
 def get_help_file(lang):
     "Return help file for `lang`"
 
-    help_file = os.path.join(MYDIR, 'share/translations/%s-help.txt' % lang)
-    if os.path.exists(help_file):
-        return help_file
-    return HELP_FILE
+    help_file = os.path.join(MYDIR, f'share/translations/{lang}-help.txt')
+    return help_file if os.path.exists(help_file) else HELP_FILE
 
 def remove_ansi(sometext):
     ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')

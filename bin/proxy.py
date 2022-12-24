@@ -12,6 +12,7 @@ it does not fetch and does not store the data in the cache,
 but is using the fake data from "test/proxy-data".
 
 """
+
 from __future__ import print_function
 
 from gevent.pywsgi import WSGIServer
@@ -34,7 +35,7 @@ APP = Flask(__name__)
 
 MYDIR = os.path.abspath(
     os.path.dirname(os.path.dirname('__file__')))
-sys.path.append("%s/lib/" % MYDIR)
+sys.path.append(f"{MYDIR}/lib/")
 
 from globals import PROXY_CACHEDIR, PROXY_HOST, PROXY_PORT, USE_METNO, USER_AGENT, MISSING_TRANSLATION_LOG
 from metno import create_standard_json_from_metno, metno_request
@@ -53,7 +54,7 @@ def load_translations():
     translations = {}
 
     for f_name in PROXY_LANGS:
-        f_name = 'share/translations/%s.txt' % f_name
+        f_name = f'share/translations/{f_name}.txt'
         translation = {}
         lang = f_name.split('/')[-1].split('.', 1)[0]
         with open(f_name, "r") as f_file:
@@ -88,14 +89,12 @@ def _cache_file(path, query):
     is slightly varied basing on the path+query sha1 hash digest.
     """
 
-    digest = hashlib.sha1(("%s %s" % (path, query)).encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(f"{path} {query}".encode("utf-8")).hexdigest()
     digest_number = ord(digest[0].upper())
     expiry_interval = 60*(digest_number+90)
 
     timestamp = "%010d" % (int(time.time())//expiry_interval*expiry_interval)
-    filename = os.path.join(PROXY_CACHEDIR, timestamp, path, query)
-
-    return filename
+    return os.path.join(PROXY_CACHEDIR, timestamp, path, query)
 
 
 def _load_content_and_headers(path, query):
@@ -104,8 +103,9 @@ def _load_content_and_headers(path, query):
     else:
         cache_file = _cache_file(path, query)
     try:
-        return (open(cache_file, 'r').read(),
-                json.loads(open(cache_file+".headers", 'r').read()))
+        return open(cache_file, 'r').read(), json.loads(
+            open(f"{cache_file}.headers", 'r').read()
+        )
     except IOError:
         return None, None
 
@@ -121,7 +121,7 @@ def _save_content_and_headers(path, query, content, headers):
     cache_dir = os.path.dirname(cache_file)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
-    open(cache_file + ".headers", 'w').write(json.dumps(headers))
+    open(f"{cache_file}.headers", 'w').write(json.dumps(headers))
     open(cache_file, 'wb').write(content)
 
 def translate(text, lang):
@@ -184,22 +184,37 @@ def add_translations(content, lang):
         d['data']['current_condition'][0]['weatherDesc'][0]['value'] = \
             weather_condition
         if lang in languages_to_translate:
-            d['data']['current_condition'][0]['lang_%s' % lang] = \
-                [{'value': translate(weather_condition, lang)}]
+            d['data']['current_condition'][0][f'lang_{lang}'] = [
+                {'value': translate(weather_condition, lang)}
+            ]
         elif lang == 'sr':
-            d['data']['current_condition'][0]['lang_%s' % lang] = \
-                [{'value': cyr(
-                    d['data']['current_condition'][0]['lang_%s' % lang][0]['value']\
-                    )}]
+            d['data']['current_condition'][0][f'lang_{lang}'] = [
+                {
+                    'value': cyr(
+                        d['data']['current_condition'][0][f'lang_{lang}'][0][
+                            'value'
+                        ]
+                    )
+                }
+            ]
         elif lang == 'el':
-            d['data']['current_condition'][0]['lang_%s' % lang] = \
-                [{'value': _patch_greek(
-                    d['data']['current_condition'][0]['lang_%s' % lang][0]['value']\
-                    )}]
+            d['data']['current_condition'][0][f'lang_{lang}'] = [
+                {
+                    'value': _patch_greek(
+                        d['data']['current_condition'][0][f'lang_{lang}'][0][
+                            'value'
+                        ]
+                    )
+                }
+            ]
         elif lang == 'sr-lat':
-            d['data']['current_condition'][0]['lang_%s' % lang] = \
-                [{'value':d['data']['current_condition'][0]['lang_sr'][0]['value']\
-                            }]
+            d['data']['current_condition'][0][f'lang_{lang}'] = [
+                {
+                    'value': d['data']['current_condition'][0]['lang_sr'][0][
+                        'value'
+                    ]
+                }
+            ]
 
         fixed_weather = []
         for w in d['data']['weather']:  # pylint: disable=invalid-name
@@ -207,17 +222,13 @@ def add_translations(content, lang):
             for h in w['hourly']:       # pylint: disable=invalid-name
                 weather_condition = h['weatherDesc'][0]['value']
                 if lang in languages_to_translate:
-                    h['lang_%s' % lang] = \
-                        [{'value': translate(weather_condition, lang)}]
+                    h[f'lang_{lang}'] = [{'value': translate(weather_condition, lang)}]
                 elif lang == 'sr':
-                    h['lang_%s' % lang] = \
-                        [{'value': cyr(h['lang_%s' % lang][0]['value'])}]
+                    h[f'lang_{lang}'] = [{'value': cyr(h[f'lang_{lang}'][0]['value'])}]
                 elif lang == 'el':
-                    h['lang_%s' % lang] = \
-                        [{'value': _patch_greek(h['lang_%s' % lang][0]['value'])}]
+                    h[f'lang_{lang}'] = [{'value': _patch_greek(h[f'lang_{lang}'][0]['value'])}]
                 elif lang == 'sr-lat':
-                    h['lang_%s' % lang] = \
-                        [{'value': h['lang_sr'][0]['value']}]
+                    h[f'lang_{lang}'] = [{'value': h['lang_sr'][0]['value']}]
                 fixed_hourly.append(h)
             w['hourly'] = fixed_hourly
             fixed_weather.append(w)
@@ -233,7 +244,7 @@ def _fetch_content_and_headers(path, query_string, **kwargs):
 
     if content is None:
         srv = _find_srv_for_query(path, query_string)
-        url = '%s/%s?%s' % (srv, path, query_string)
+        url = f'{srv}/{path}?{query_string}'
 
         attempts = 10
         response = None
@@ -293,8 +304,6 @@ def proxy(path):
     return content, 200, headers
 
 if __name__ == "__main__":
-    #app.run(host='0.0.0.0', port=5001, debug=False)
-    #app.debug = True
     if len(sys.argv) == 1:
         bind_addr = "0.0.0.0"
         SERVER = WSGIServer((bind_addr, PROXY_PORT), APP)
@@ -304,6 +313,6 @@ if __name__ == "__main__":
         APP.testing = True
         with APP.test_client() as c:
             resp = c.get(sys.argv[1])
-            print('Status: ' + resp.status)
+            print(f'Status: {resp.status}')
             # print('Headers: ' + dumps(resp.headers))
             print(resp.data.decode('utf-8'))
